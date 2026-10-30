@@ -1,0 +1,106 @@
+import { Platform, PermissionsAndroid, Linking } from "react-native";
+import { requireOptionalNativeModule } from "expo-modules-core";
+import Constants from "expo-constants";
+
+export const nativePhone =
+  Platform.OS === "android"
+    ? requireOptionalNativeModule("CallTrackTelecom")
+    : null;
+export function appVariant() {
+  try {
+    if (nativePhone) return nativePhone.getVariant();
+  } catch {}
+  return Constants.expoConfig?.extra?.appVariant || "combined";
+}
+export function assertAppRole(user) {
+  const variant = appVariant();
+  if (variant === "agent" && user.role !== "agent")
+    throw new Error("Use CallTrack CRM for your administrator account.");
+  if (variant === "admin" && !["admin", "supervisor"].includes(user.role))
+    throw new Error("Use CallTrack Dialer for your agent account.");
+}
+export function newOperationId() {
+  if (nativePhone?.newId) return nativePhone.newId();
+  if (typeof crypto !== "undefined" && crypto.randomUUID)
+    return crypto.randomUUID();
+  // Operation IDs are idempotency keys, never credentials.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    return (char === "x" ? random : (random & 3) | 8).toString(16);
+  });
+}
+export async function phoneCapabilities() {
+  if (!nativePhone)
+    return {
+      available: false,
+      defaultDialer: false,
+      callPermission: false,
+      phonePermission: false,
+      callLogPermission: false,
+      notifications: false,
+      recording: false,
+    };
+  return JSON.parse(await nativePhone.getCapabilities());
+}
+export async function readNative(name, ...args) {
+  if (!nativePhone) return [];
+  return JSON.parse(await nativePhone[name](...args));
+}
+export async function requestPhoneSetup() {
+  if (!nativePhone) {
+    throw new Error("Install CallTrack Dialer on Android first.");
+  }
+
+  let caps = await phoneCapabilities();
+
+  if (!caps.defaultDialer) {
+    const approved = await nativePhone.requestDialerRole();
+    caps = await phoneCapabilities();
+
+    if (!approved || !caps.defaultDialer) {
+      throw new Error(
+        "Select CallTrack Dialer as your default Phone app to continue setup."
+      );
+    }
+  }
+
+  const needed = [
+    PermissionsAndroid.PERMISSIONS.CALL_PHONE,
+    PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+    PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
+  ];
+
+  if (Number(Platform.Version) >= 33) {
+    needed.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+  }
+
+  await PermissionsAndroid.requestMultiple(needed);
+
+  const updated = await phoneCapabilities();
+
+  if (!updated.callPermission ||
+      !updated.phonePermission ||
+      !updated.callLogPermission) {
+    throw new Error(
+      "Some required phone permissions are still disabled. Please allow them to finish setup."
+    );
+  }
+
+  return updated;
+}
+export async function openSystemPhone(number) {
+  if (Platform.OS === "web")
+    throw new Error(
+      "Open CallTrack Dialer on an Android phone to place SIM calls.",
+    );
+  const clean = number.replace(/[^\d+*#]/g, "");
+  if (!/^[+\d*#]{1,40}$/.test(clean))
+    throw new Error("Enter a phone number first.");
+  await Linking.openURL("tel:" + encodeURIComponent(clean));
+}
+export async function chooseDateTime(initial) {
+  if (!nativePhone) return null;
+  return nativePhone.pickDateTime(
+    initial ? +new Date(initial) : Date.now() + 3600000,
+  );
+}

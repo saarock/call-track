@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.api
+    env_file: ${CALLTRACK_SERVER_ENV:-./server.env}
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      HOST: "0.0.0.0"
+      CALL_MODE: sim
+      TRUST_PROXY_HOPS: "1"
+      CALLTRACK_RELEASE_DIR: /private-releases
+      RECORDING_DIRECTORY: /app/private-recordings
+    restart: unless-stopped
+    init: true
+    volumes:
+      - ./private-releases:/private-releases:ro
+      - recordings_data:/app/private-recordings
+    networks: [calltrack]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  web:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.web
+      args:
+        PUBLIC_API_URL: https://${CALLTRACK_DOMAIN:?Set CALLTRACK_DOMAIN in deployment/.env}/api
+    environment:
+      CALLTRACK_DOMAIN: ${CALLTRACK_DOMAIN:?Set CALLTRACK_DOMAIN in deployment/.env}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      api: {condition: service_healthy}
+    networks: [calltrack]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  calltrack:
+volumes:
+  caddy_data:
+  caddy_config:
+  recordings_data:

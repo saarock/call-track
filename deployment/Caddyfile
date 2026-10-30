@@ -1,0 +1,16 @@
+{$CALLTRACK_DOMAIN} {
+  encode zstd gzip
+  header Strict-Transport-Security "max-age=31536000"
+  header X-Content-Type-Options "nosniff"
+  header Referrer-Policy "strict-origin-when-cross-origin"
+
+  @backend path /api/* /socket.io/*
+  handle @backend {
+    reverse_proxy api:5000
+  }
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+  }
+}

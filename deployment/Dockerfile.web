@@ -1,0 +1,12 @@
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+COPY mobile/package.json mobile/package-lock.json ./
+RUN npm ci
+COPY mobile/ ./
+ARG PUBLIC_API_URL
+ENV EXPO_PUBLIC_API_URL=$PUBLIC_API_URL
+RUN test -n "$PUBLIC_API_URL" && npx expo export --platform web --output-dir dist
+
+FROM caddy:2-alpine
+COPY --from=build /app/dist /srv
+COPY deployment/Caddyfile /etc/caddy/Caddyfile

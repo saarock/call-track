@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+group = 'com.calltrack'
+version = '1.0.0'
+
+def calltrackFontsDir = layout.buildDirectory.dir("generated/calltrack-fonts")
+def copyCallTrackFonts = tasks.register("copyCallTrackFonts", Copy) {
+  from('../../../node_modules/@expo-google-fonts/inter/400Regular') { include '*.ttf' }
+  from('../../../node_modules/@expo-google-fonts/inter/700Bold') { include '*.ttf' }
+  into(calltrackFontsDir)
+}
+android {
+  namespace "com.calltrack.telecom"
+  defaultConfig { minSdkVersion 26; versionCode 1; versionName "1.0.0" }
+  sourceSets.main.assets.srcDir(calltrackFontsDir)
+}
+tasks.named("preBuild").configure { dependsOn(copyCallTrackFonts) }
+

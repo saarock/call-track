@@ -1,0 +1,52 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.expo/
+dist/
+coverage/
+*.log
+mobile/android/
+mobile/ios/
+google-services.json
+*.p12
+*.p8
+
+.history/
+mobile/builds/
+
+.build-tools/
+
+*.keystore
+*.jks
+deployment/server.env
+deployment/private-releases/
+
+private-recordings/
+deployment/artifacts/
+mobile/dist-*/
+# Dependencies
+**/node_modules/
+
+# Android and Gradle generated files
+**/build/
+**/.gradle/
+**/.cxx/
+
+# Expo generated files
+**/.expo/
+**/dist/
+
+# Android compiled applications
+*.apk
+*.aab
+
+# Private secrets
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+
+# Logs
+*.log
